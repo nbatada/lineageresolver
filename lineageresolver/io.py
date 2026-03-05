@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import json
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -112,3 +114,22 @@ def _find_cluster_column(obs: pd.DataFrame) -> str | None:
         if column in obs.columns:
             return column
     return None
+
+
+def write_ambient_artifacts(
+    profile: pd.DataFrame,
+    report: dict[str, Any],
+    output_dir: str | Path,
+) -> tuple[Path, Path]:
+    """Write ambient profile/report artifacts to disk."""
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    profile_path = out_dir / "ambient_profile.tsv"
+    report_path = out_dir / "ambient_report.json"
+
+    profile.to_csv(profile_path, sep="\t", index=False)
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, indent=2, sort_keys=True)
+
+    return profile_path, report_path
