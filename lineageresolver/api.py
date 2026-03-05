@@ -110,6 +110,7 @@ def infer(
     adata_out.uns["lineageresolver_ambient_estimation_mode"] = ambient_mode
     if ambient_result is not None:
         adata_out.uns["lineageresolver_ambient_report"] = ambient_result.report
+    adata_out.uns["lineageresolver_task_config"] = loaded_config
 
     adata_out.uns["lineageresolver"] = {
         "mode": "softmax_v1",
