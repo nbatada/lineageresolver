@@ -16,23 +16,20 @@ def test_placeholder_output_columns_and_diagnostics_written() -> None:
     assert "lineageresolver_label_call" in adata.obs.columns
     assert "lineageresolver_max_p" in adata.obs.columns
 
-    assert adata.obs["lineageresolver_label_map"].tolist() == [
-        "unresolved",
-        "not_evaluated",
-        "unresolved",
-        "not_evaluated",
-    ]
-    assert adata.obs["lineageresolver_label_call"].tolist() == [
-        "uncertain",
-        "not_evaluated",
-        "uncertain",
-        "not_evaluated",
-    ]
+    assert adata.obs["lineageresolver_label_map"].tolist()[1] == "not_evaluated"
+    assert adata.obs["lineageresolver_label_map"].tolist()[3] == "not_evaluated"
+    assert adata.obs["lineageresolver_label_call"].tolist()[1] == "not_evaluated"
+    assert adata.obs["lineageresolver_label_call"].tolist()[3] == "not_evaluated"
+
+    assert adata.obs["lineageresolver_label_map"].tolist()[0] in {"NK", "gdT", "abT"}
+    assert adata.obs["lineageresolver_label_map"].tolist()[2] in {"NK", "gdT", "abT"}
+    assert adata.obs["lineageresolver_label_call"].tolist()[0] in {"uncertain", "NK", "gdT", "abT"}
+    assert adata.obs["lineageresolver_label_call"].tolist()[2] in {"uncertain", "NK", "gdT", "abT"}
     max_p = adata.obs["lineageresolver_max_p"].tolist()
-    assert max_p[0] == 0.0
+    assert 0.0 <= max_p[0] <= 1.0
     assert math.isnan(max_p[1])
-    assert max_p[2] == 0.0
+    assert 0.0 <= max_p[2] <= 1.0
     assert math.isnan(max_p[3])
 
-    assert adata.uns["lineageresolver"]["mode"] == "placeholder"
+    assert adata.uns["lineageresolver"]["mode"] == "softmax_v1"
     assert adata.uns["lineageresolver"]["candidate_count"] == 2
