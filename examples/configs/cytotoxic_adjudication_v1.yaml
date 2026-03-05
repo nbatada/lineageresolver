@@ -1,0 +1,22 @@
+task_name: cytotoxic_adjudication_v1
+classes: [NK, gdT, abT]
+modules:
+  NK:
+    genes: [NKG7, GNLY, GZMB, PRF1]
+    weights: [1.0, 1.0, 0.8, 0.8]
+  gdT:
+    genes: [TRDC, TRGC1, TRGC2, NKG7]
+    weights: [1.2, 1.0, 1.0, 0.5]
+  abT:
+    genes: [TRAC, TRBC1, TRBC2, LTB]
+    weights: [1.2, 1.0, 1.0, 0.5]
+tcr_marker_set_genes_for_alpha_tcr: [TRAC, TRBC1, TRBC2, TRDC, TRGC1, TRGC2]
+parameters:
+  beta:
+    NK:  {b0: 0.0, b_module: 1.0, b_kJ: -0.3, b_ambll: 0.3, b_qc: 0.0}
+    gdT: {b0: 0.0, b_module: 1.0, b_kJ: 0.8,  b_ambll: 0.6, b_qc: 0.0}
+    abT: {b0: 0.0, b_module: 1.0, b_kJ: 0.5,  b_ambll: 0.4, b_qc: 0.0}
+defaults:
+  tau: 0.9
+  candidate_set_required: false
+  warn_if_all_cells: true
