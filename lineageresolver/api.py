@@ -7,9 +7,11 @@ from typing import Any
 import warnings
 
 import numpy as np
+import pandas as pd
 
 from lineageresolver import ambient as ambient_mod
 from lineageresolver.config import load_task_config
+from lineageresolver.evidence import derive_tcr_features
 from lineageresolver.io import resolve_candidate_mask, validate_adata_for_infer
 from lineageresolver.modules import compute_weighted_module_scores
 
@@ -26,7 +28,7 @@ def infer(
     inplace: bool = True,
 ):
     """Run v1 infer() skeleton with candidate routing and placeholder outputs."""
-    del evidence_table, return_posteriors
+    del return_posteriors
 
     validate_adata_for_infer(adata)
     if not (0.0 < float(tau) <= 1.0):
@@ -66,6 +68,17 @@ def infer(
     adata_out.obs["lineageresolver_label_map"] = label_map
     adata_out.obs["lineageresolver_label_call"] = label_call
     adata_out.obs["lineageresolver_max_p"] = max_p
+
+    ambient_profile_df = _resolve_ambient_profile(ambient_profile, ambient_result)
+    tcr_features, evidence_diagnostics = derive_tcr_features(
+        adata=adata_out,
+        evidence_table=evidence_table,
+        ambient_profile=ambient_profile_df,
+        tcr_marker_genes=loaded_config.get("tcr_marker_set_genes_for_alpha_tcr"),
+    )
+    for column in tcr_features.columns:
+        adata_out.obs[column] = tcr_features[column].to_numpy()
+
     module_scores, module_diagnostics = compute_weighted_module_scores(
         adata_out,
         modules_cfg=modules_cfg,
@@ -86,6 +99,7 @@ def infer(
         "task_config_source": str(task_config) if isinstance(task_config, (str, Path)) else "in-memory",
         "ambient_mode": ambient_mode,
         "module_diagnostics": module_diagnostics,
+        "evidence_diagnostics": evidence_diagnostics,
     }
     adata_out.uns["lineageresolver_candidate_mask"] = candidate_mask.tolist()
 
@@ -95,3 +109,19 @@ def infer(
 def estimate_ambient_profile(*args: Any, **kwargs: Any):
     """Ambient estimation API placeholder."""
     return ambient_mod.estimate_ambient_profile(*args, **kwargs)
+
+
+def _resolve_ambient_profile(
+    ambient_profile: Any | None,
+    ambient_result: Any | None,
+) -> pd.DataFrame | None:
+    if ambient_profile is not None:
+        if isinstance(ambient_profile, pd.DataFrame):
+            return ambient_profile
+        if isinstance(ambient_profile, (str, Path)):
+            return pd.read_csv(ambient_profile, sep="\t")
+        raise ValueError("ambient_profile must be a DataFrame or path to TSV when provided.")
+
+    if ambient_result is not None and hasattr(ambient_result, "profile"):
+        return ambient_result.profile
+    return None
