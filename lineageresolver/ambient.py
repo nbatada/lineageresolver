@@ -84,6 +84,60 @@ def estimate_ambient_profile(
     )
 
 
+def estimate_fallback_ambient_profile(
+    adata: Any,
+    bottom_percent: float = 10.0,
+    output_dir: str | Path | None = None,
+) -> AmbientEstimationResult:
+    """Estimate ambient profile from low-UMI cells in filtered AnnData."""
+    if not (0.0 < bottom_percent <= 100.0):
+        raise ValueError("bottom_percent must be in (0, 100].")
+
+    n_umi = np.asarray(adata.X.sum(axis=1)).ravel()
+    cutoff = np.percentile(n_umi, bottom_percent)
+    selected_mask = n_umi <= cutoff
+    if not selected_mask.any():
+        raise ValueError("No cells matched fallback ambient selection criteria.")
+
+    ambient_counts = np.asarray(adata.X[selected_mask, :].sum(axis=0)).ravel().astype(float)
+    total_ambient = float(ambient_counts.sum())
+    if total_ambient <= 0.0:
+        raise ValueError("Fallback selected cells had zero counts.")
+
+    ambient_fraction = ambient_counts / total_ambient
+    genes = [str(g) for g in adata.var_names]
+    selected_barcodes = [str(bc) for bc in np.asarray(adata.obs_names)[selected_mask]]
+
+    profile = pd.DataFrame(
+        {
+            "gene": genes,
+            "ambient_count": ambient_counts,
+            "ambient_fraction": ambient_fraction,
+        }
+    )
+    report = {
+        "mode": "fallback",
+        "n_barcodes_used": int(selected_mask.sum()),
+        "total_umis_used": total_ambient,
+        "umi_thresholds": {
+            "bottom_percent": float(bottom_percent),
+            "cutoff_n_umi": float(cutoff),
+        },
+        "tr_marker_ambient_fraction": float(
+            profile[profile["gene"].isin(TR_MARKER_GENES)]["ambient_fraction"].sum()
+        ),
+    }
+
+    if output_dir is not None:
+        write_ambient_artifacts(profile=profile, report=report, output_dir=output_dir)
+
+    return AmbientEstimationResult(
+        profile=profile,
+        report=report,
+        selected_barcodes=selected_barcodes,
+    )
+
+
 def read_raw_10x_mtx(raw_10x_path: str | Path) -> tuple[sparse.csr_matrix, list[str], list[str]]:
     """Read 10x raw matrix from MTX directory layout."""
     matrix_dir = _resolve_matrix_dir(Path(raw_10x_path))
