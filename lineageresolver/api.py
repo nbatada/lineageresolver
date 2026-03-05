@@ -9,7 +9,9 @@ import warnings
 import numpy as np
 
 from lineageresolver import ambient as ambient_mod
+from lineageresolver.config import load_task_config
 from lineageresolver.io import resolve_candidate_mask, validate_adata_for_infer
+from lineageresolver.modules import compute_weighted_module_scores
 
 
 def infer(
@@ -29,6 +31,10 @@ def infer(
     validate_adata_for_infer(adata)
     if not (0.0 < float(tau) <= 1.0):
         raise ValueError("tau must be in the interval (0, 1].")
+
+    loaded_config = load_task_config(task_config)
+    classes = [str(c) for c in loaded_config.get("classes", [])]
+    modules_cfg = loaded_config.get("modules", {})
 
     adata_out = adata if inplace else adata.copy()
     candidate_mask = resolve_candidate_mask(adata_out, candidate_set)
@@ -60,6 +66,14 @@ def infer(
     adata_out.obs["lineageresolver_label_map"] = label_map
     adata_out.obs["lineageresolver_label_call"] = label_call
     adata_out.obs["lineageresolver_max_p"] = max_p
+    module_scores, module_diagnostics = compute_weighted_module_scores(
+        adata_out,
+        modules_cfg=modules_cfg,
+        classes=classes if classes else list(modules_cfg.keys()),
+    )
+    for class_name, values in module_scores.items():
+        adata_out.obs[f"lineageresolver_module_{class_name}"] = values
+
     adata_out.uns["lineageresolver_ambient_estimation_mode"] = ambient_mode
     if ambient_result is not None:
         adata_out.uns["lineageresolver_ambient_report"] = ambient_result.report
@@ -71,6 +85,7 @@ def infer(
         "task_config_type": type(task_config).__name__,
         "task_config_source": str(task_config) if isinstance(task_config, (str, Path)) else "in-memory",
         "ambient_mode": ambient_mode,
+        "module_diagnostics": module_diagnostics,
     }
     adata_out.uns["lineageresolver_candidate_mask"] = candidate_mask.tolist()
 
